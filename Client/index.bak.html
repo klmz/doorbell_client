@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Deurbel</title>
+	<link rel="manifest" href="manifest.json">
+
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="msapplication-starturl" content="/">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<!-- update the version number as needed -->
+	<script defer src="/__/firebase/7.14.5/firebase-app.js"></script>
+	<!-- include only the Firebase features as you need -->
+	<script defer src="/__/firebase/7.14.5/firebase-auth.js"></script>
+	<script defer src="/__/firebase/7.14.5/firebase-database.js"></script>
+	<script defer src="/__/firebase/7.14.5/firebase-messaging.js"></script>
+	<script defer src="/__/firebase/7.14.5/firebase-storage.js"></script>
+	<!-- initialize the SDK after all desired features are loaded -->
+	<script defer src="/__/firebase/init.js"></script>
+
+	<!-- Material Design Lite -->
+	<link rel="stylesheet" href="./mdl/material.min.css">
+	<script src="./mdl/material.min.js"></script>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+	<!-- Components -->
+	<script src='./js/index.js' type='module'></script>
+	<link rel="stylesheet" href="./css/styles.css">
+</head>
+
+<body>
+	<div id="toolbar">
+		<a href="#" id='btnLoginLogout'>Login</a>
+		<a href="#" id='btnConnect'>Connect doorbell</a>
+	</div>
+	<div id="bell-panel" class='panel'>
+		<h1>Deurbellen</h1>
+		<select id='doorbells'>
+			<option value=''>Select doorbell...</option>
+		</select>
+		<div id='state'>
+
+		</div>
+
+		<div id='buttons'>
+			<app-switch id="switchGong" data-text='Gong' />
+			<app-switch id="switchNotifications" data-text='Notifications' />
+			<app-button id='btnRing' data-text='Ring'>Ring</app-button>
+
+		</div>
+		<ul id='rings'>
+
+		</ul>
+	</div>
+
+	<script>
+		let user = null;
+		let db = null;
+		let events = [];
+		let doorbells = [];
+		let receiveNotifications = true;
+		let doorbellState = {
+			'voordeur': {
+				online: false,
+				gong: false,
+				loading: true
+			}
+		}
+		const clear = (el) => {
+			while (el.firstChild) {
+				el.removeChild(el.firstChild);
+			}
+		}
+		function since(previous) {
+			var current = new Date().getTime();
+			var msPerMinute = 60 * 1000;
+			var msPerHour = msPerMinute * 60;
+			var msPerDay = msPerHour * 24;
+			var msPerMonth = msPerDay * 30;
+			var msPerYear = msPerDay * 365;
+
+			var elapsed = current - previous;
+
+			if (elapsed < msPerMinute) {
+				return Math.round(elapsed / 1000) + ' seconds ago';
+			}
+
+			else if (elapsed < msPerHour) {
+				return Math.round(elapsed / msPerMinute) + ' minutes ago';
+			}
+
+			else if (elapsed < msPerDay) {
+				return Math.round(elapsed / msPerHour) + ' hours ago';
+			}
+
+			else if (elapsed < msPerMonth) {
+				return 'approximately ' + Math.round(elapsed / msPerDay) + ' days ago';
+			}
+
+			else if (elapsed < msPerYear) {
+				return 'approximately ' + Math.round(elapsed / msPerMonth) + ' months ago';
+			}
+
+			else {
+				return 'approximately ' + Math.round(elapsed / msPerYear) + ' years ago';
+			}
+		}
+		function makeid(length, charSet) {
+			var result = '';
+			if (!charSet) {
+				charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+			}
+			var charactersLength = charSet.length;
+			for (var i = 0; i < length; i++) {
+				result += charSet.charAt(Math.floor(Math.random() * charactersLength));
+			}
+			return result;
+		}
+		function $(selector) {
+			return document.getElementById(selector);
+		}
+		function create(element) { return document.createElement(element); }
+		function sendEvent(did, event) {
+			if (!db) {
+				throw Error('db is not initialised');
+			}
+			const eventId = new Date().getTime();
+			db.ref('/doorbells/' + did + '/events/' + eventId).set(event);
+		}
+
+		function createLiContent(event) {
+			const payload = event.payload;
+			switch (event.type) {
+				case 'TOGGLE_GONG':
+					return document.createTextNode(`Toggled gong ${payload.isGongOn ? "on" : "off"}.`);
+					break;
+				case 'REMOTE_RING':
+					return document.createTextNode(`Ringed doorbell ${payload.n} times with a ${payload.delay} ms interval.`)
+				case 'RING':
+					return document.createTextNode('Someone rang the bell.')
+				case 'SENSOR_TRIGGERED':
+					return document.createTextNode(payload.message);
+				default:
+					return document.createTextNode(event.type);
+			}
+		}
+		function buildListItem(event) {
+			const li = document.createElement("li");
+			const p = document.createElement("p");
+			const spnTimestamp = document.createElement("span");
+			spnTimestamp.classList.add("timestamp");
+			spnTimestamp.appendChild(document.createTextNode(since(event.timestamp) + ": "))
+			const span = document.createElement("span");
+			span.classList.add("content");
+			span.appendChild(createLiContent(event));
+			p.appendChild(spnTimestamp);
+			p.appendChild(span);
+			li.appendChild(p);
+			return li;
+		}
+		function renderState(did) {
+			if (!did) return;
+			const state = doorbellState[did];
+			$("state").innerHTML = `<b>${state.online ? 'Online' : 'Offline'}</b><br />`
+
+			$("switchGong").checked = state.gong;
+			$("switchNotifications").checked = receiveNotifications;
+		}
+		function buildOption(doorbell) {
+			let did = doorbell;
+			let option = create('option');
+			option.append(document.createTextNode(did));
+			option.value = did;
+			return option;
+		}
+		function renderDoorbells() {
+			const select = $('doorbells');
+			clear(select);
+			let options = doorbells.map((doorbell) => buildOption(doorbell));
+			options.forEach((option) => select.append(option))
+
+			if (doorbells.length === 1) {
+				select.value = options[0].value;
+				var event = new Event('change');
+				select.dispatchEvent(event);
+			}
+		}
+		setInterval(() => {
+			const ul = $('rings');
+			clear(ul);
+			events
+				.map((event) => buildListItem(event))
+				.forEach((li) => ul.append(li));
+		}, 1000)
+		document.addEventListener('DOMContentLoaded', function () {
+			//Initialise firebase
+			try {
+				let app = firebase.app();
+				let features = ['auth', 'database', 'messaging', 'storage'].filter(feature => typeof app[feature] === 'function');
+
+			} catch (e) {
+				console.error(e);
+			}
+			db = firebase.database();
+			const messaging = firebase.messaging();
+			messaging.usePublicVapidKey("BLZ_vp3uxqZzGckZDsorXVV_aAKrGb6kF3nU1HbkoDfz8qt2vCv8b98mSuKRTJdgO5HLF5JTAYbAXupPoVVvCfg");
+			firebase.auth().onAuthStateChanged(function (u) {
+				if (u) {
+					// User is signed in.
+					var displayName = u.displayName;
+					var email = u.email;
+					var emailVerified = u.emailVerified;
+					var photoURL = u.photoURL;
+					var isAnonymous = u.isAnonymous;
+					var uid = u.uid;
+					var providerData = u.providerData;
+					user = u;
+					// Get Instance ID token. Initially this makes a network call, once retrieved
+					// subsequent calls to getToken will return from cache.
+					messaging.getToken().then((currentToken) => {
+						if (currentToken) {
+							console.log(currentToken)
+							sendTokenToServer(currentToken);
+							// updateUIForPushEnabled(currentToken);
+						} else {
+							// Show permission request.
+							console.log('No Instance ID token available. Request permission to generate one.');
+							// Show permission UI.
+							// updateUIForPushPermissionRequired();
+							// setTokenSentToServer(false);
+						}
+					}).catch((err) => {
+						console.log('An error occurred while retrieving token. ', err);
+						// showToken('Error retrieving Instance ID token. ', err);
+						// setTokenSentToServer(false);
+					});
+					// ...
+					$('btnLoginLogout').innerHTML = 'Logout';
+					loadDoorbells();
+				} else {
+					console.log('Logged out');
+					$('btnLoginLogout').innerHTML = 'Login';
+				}
+			});
+
+			//Setup doorbell selections
+			$('doorbells').onchange = (event) => {
+				subscribeToDoorbell($('doorbells').value);
+			}
+			$('btnConnect').onclick = () => {
+				const secret = prompt('What is the doorbell\'s secret?');
+				//send the secret
+				db.ref(`/doorbells`).orderByChild('secret').equalTo(secret).once('value', (snapshot) => {
+					const value = snapshot.val();
+					if (!value) return;
+					const did = Object.keys(value)[0];
+					db.ref(`/doorbells/${did}/state/discoveryMode`).set({
+						enabled: true,
+						uid: user.uid
+					});
+				})
+
+			}
+
+			//List all the doorbells to select
+			function loadDoorbells() {
+				if (!user) return;
+				doorbells = [];
+				db.ref(`/users/${user.uid}/doorbells`).once('value', (snapshot) => {
+					const value = snapshot.val();
+					console.log('doorbell', value);
+					if (value) {
+						doorbells.push(Object.keys(value))
+						renderDoorbells();
+					}
+				})
+			}
+			//When a doorbell is selected subscribe to the events
+			function subscribeToDoorbell(did) {
+				$('btnRing').onclick = () => sendEvent(did, {
+					'type': 'REMOTE_RING',
+					'payload': {
+						'n': 2,
+						'delay': 500
+					}
+				})
+
+				$('_switchNotifications').onchange = (e) => {
+					const value = e.target.checked;
+					e.target.checked = !value
+					db.ref(`/users/${user.uid}/gcm-ids/settings/receiveNotifications`).set(value);
+				}
+				$("_switchGong").onchange = (e) => {
+					const value = e.target.checked;
+					e.target.checked = !value
+					sendEvent(did, {
+						'type': 'TOGGLE_GONG',
+						'payload': {
+							isGongOn: value
+						}
+					});
+				}
+
+				//Listen to events
+				db.ref('/doorbells/' + did + '/events').orderByKey().limitToLast(20).on('child_added', (snapshot) => {
+					const value = snapshot.val();
+					value.timestamp = snapshot.key;
+					events.unshift(value);
+				})
+				//listen to state
+				db.ref('/doorbells/' + did + '/state').once('value', (snapshot) => {
+
+					doorbellState[did] = snapshot.val();
+					console.log('once', doorbellState[did]);
+					renderState(did);
+				});
+				db.ref('/doorbells/' + did + '/state').on('child_changed', (snapshot) => {
+					doorbellState[did][snapshot.key] = snapshot.val();
+					console.log('once', doorbellState[did]);
+					renderState(did);
+				});
+
+				db.ref(`/users/${user.uid}/gcm-ids/settings/receiveNotifications`).once('value', (snapshot) => {
+					receiveNotifications = snapshot.val();
+					renderState(did);
+				});
+				db.ref(`/users/${user.uid}/gcm-ids/settings/receiveNotifications`).on('value', (snapshot) => {
+					receiveNotifications = snapshot.val();
+					renderState(did);
+				});
+			}
+
+
+
+			//Login stuff
+			var provider = new firebase.auth.GoogleAuthProvider();
+			$('btnLoginLogout').onclick = () => {
+				firebase.auth().signInWithPopup(provider).then(function (result) {
+					// This gives you a Google Access Token. You can use it to access the Google API.
+					var token = result.credential.accessToken;
+					// The signed-in user info.
+					user = result.user;
+					$('btnLoginLogout').innerHTML = 'Logout';
+				}).catch(function (error) {
+					// Handle Errors here.
+					var errorCode = error.code;
+					var errorMessage = error.message;
+					// The email of the user's account used.
+					var email = error.email;
+					// The firebase.auth.AuthCredential type that was used.
+					var credential = error.credential;
+					// ...
+					$('btnLoginLogout').innerHTML = 'Login';
+				});
+			};
+
+			renderState();
+		});
+	</script>
+</body>
+
+</html>

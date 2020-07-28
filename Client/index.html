@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Deurbel</title>
+	<link rel="manifest" href="manifest.json">
+
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="msapplication-starturl" content="/">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<!-- update the version number as needed -->
+	<script defer src="/__/firebase/7.14.5/firebase-app.js"></script>
+	<!-- include only the Firebase features as you need -->
+	<script defer src="/__/firebase/7.14.5/firebase-auth.js"></script>
+	<script defer src="/__/firebase/7.14.5/firebase-database.js"></script>
+	<script defer src="/__/firebase/7.14.5/firebase-messaging.js"></script>
+	<script defer src="/__/firebase/7.14.5/firebase-storage.js"></script>
+	<!-- initialize the SDK after all desired features are loaded -->
+	<script defer src="/__/firebase/init.js"></script>
+
+	<!-- Material Design Lite -->
+	<link rel="stylesheet" href="./mdl/material.min.css">
+	<script src="./mdl/material.min.js"></script>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+	<!-- Components -->
+	<script src='./js/index.js' type='module'></script>
+	<link rel="stylesheet" href="./css/styles.css">
+</head>
+
+<body>
+	<div id="toolbar">
+		<a href="#" id='btnLoginLogout'>Login</a>
+		<a href="#" id='btnConnect'>Connect doorbell</a>
+	</div>
+	<div id="bell-panel" class='panel'>
+		<h1>Deurbellen</h1>
+		<select id='doorbells'>
+			<option value=''>Select doorbell...</option>
+		</select>
+		<div id='state'>
+
+		</div>
+
+		<div id='buttons'>
+			<app-switch id="switchGong" data-text='Gong'/>
+			<app-switch id="switchNotifications" data-text='Notifications'/>
+			<app-button id='btnRing' data-text='Ring'>Ring</app-button>
+			
+		</div>
+		<ul id='rings'>
+
+		</ul>
+	</div>
+</body>
+
+</html>
