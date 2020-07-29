@@ -8,9 +8,11 @@
 3. For the public directory enter 'Client'
 3. Again, don't overwrite existing files.
 3. Update the config object in `Client/firebase-messaging-sw.js:10`. You can find your config object in the firebase console under settings, general, your apps. You might have to create an webapp to get this config object.
-3. In `Client/js/messaging.js:7` you have to change the messaging public key, you can find that under settings -> cloud messaging. You want the server key (i'm not sure if this is the right key...)
+3. In `Client/js/messaging.js:7` you have to change the messaging public key, you can find that under settings -> cloud messaging -> generate web push certificate. (https://firebase.google.com/docs/cloud-messaging/js/client#configure_web_credentials_with_fcm)
 1. Enable google sign in under authentication -> sign-in method, follow the steps to enable google sign in. Or any other authentication provider you want to use.
 3. Run `firebase deploy`. That should deploy the firebase functions, create a database and the host the webapp.
 3. If you had to create an app in the previous step you can now link that app to your hosting in the save place where the config object could be found.
+
 If you want to deploy changes to a specific part you can also do `firebase deploy --only functions` and it only deploys functions.
 
+If you want to locally run hosting you can use `firebase serve --only hosting`. 

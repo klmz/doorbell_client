@@ -193,7 +193,7 @@ const setupUI = (auth, db) => {
             const did = Object.keys(value)[0];
             db.ref(`/doorbells/${did}/state/discoveryMode`).set({
                 enabled: true,
-                uid: user.uid
+                uid: auth.getUser().uid
             });
         })
 
