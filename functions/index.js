@@ -53,6 +53,11 @@ exports.eventListener = functions.database.ref('/doorbells/{did}/events/{timesta
 	.onWrite(async (change, context) => {
 		const {did, timestamp} = context.params;
 		const event = change.after.val();
+		if(!event){
+			console.log('Event was:', event);
+			return;
+		}
+		console.log("Received event: ", event.type, event);
 
 		//If the event has a tag id, check if it already exists
 		if(event.payload && event.payload.tag){
@@ -60,7 +65,10 @@ exports.eventListener = functions.database.ref('/doorbells/{did}/events/{timesta
 			const db = admin.database();
 			db.ref(`/doorbells/${did}/events`).orderByChild('payload/tag').equalTo(event.payload.tag).once('value', (snapshot) => {
 				const value = snapshot.val();
-				if (!value) return;
+				if (!value){
+					console.log('Value was nu will dedupping', value);
+					return;
+				}
 	
 				const timestamps = Object.keys(value);
 				const originalTimestamp = timestamps.shift();
@@ -71,12 +79,13 @@ exports.eventListener = functions.database.ref('/doorbells/{did}/events/{timesta
 						...value[ts]
 					}
 					db.ref(`/doorbells/${did}/events/${ts}`).remove();
+					console.log('Remove', ts);
 				})
 				db.ref(`/doorbells/${did}/events/${originalTimestamp}`).set(value[originalTimestamp]);
 			})
 		}
 
-		console.log("Received event: ", event.type, event);
+		
 		switch (event.type) {
 			case 'RING':
 				// The ring is handle on the doorbell side for now.

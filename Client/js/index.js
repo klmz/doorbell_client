@@ -6,7 +6,7 @@ import Doorbells from './doorbells.js';
 import { generateId, clear, since, create } from './utils/index.js';
 
 const $ = (selector) => document.getElementById(selector);
-
+let storage;
 const onLoad = () => {
     //Setup firebase
     try {
@@ -14,7 +14,7 @@ const onLoad = () => {
     } catch (e) {
         console.error(e);
     }
-
+    storage = firebase.storage();
     //Setup auth
     const auth = new Authentication(firebase);
     auth.addOnLoginListener((user) => {
@@ -76,7 +76,11 @@ const imageListItem = (payload, title) =>{
     div.appendChild(document.createTextNode(title));
 
     if (payload && payload.url) {
-        div.appendChild(getImageTag(payload.url))
+        
+        const ref = storage.refFromURL(payload.url);
+        ref.getDownloadURL().then( url =>{
+            div.appendChild(getImageTag(url))
+        })
     } else {
         const spinner = document.createElement('div');
         spinner.classList.add('loader');
@@ -187,17 +191,38 @@ const subscribeToDoorbell = (db, did) => {
         });
     }
 
+    //remove events with duplicate tags, but keeps the newest.
+    const removeDuplicateTags = (events) =>{
+        const indexTagMap = {};
+        const removableIndices = [];
+        events.forEach((event, i) =>{
+            if(!event.payload.tag) return;
+            if(typeof indexTagMap[event.payload.tag] != "undefined"){
+                //replace the index, and schedule the existing value for deletion
+                removableIndices.push(i);
+            }
+            indexTagMap[event.payload.tag] = i;
+        })
+        removableIndices.reverse().forEach((i) =>{
+            console.log('remove', events[i].payload, events[i].timestamp);
+            events.splice(i, 1);
+
+        })
+    }
     //Listen to events
     db.ref('/doorbells/' + did + '/events').orderByKey().limitToLast(20).on('value', (snapshot) => {
         const newEvents = snapshot.val();
         const keys = Object.keys(newEvents);
         const events = [];
+        
         keys.forEach(key =>{
+            
             events.unshift({
                 ...newEvents[key],
                 timestamp: key
             })
         })
+        removeDuplicateTags(events);
         renderEvents(events);
     })
 
