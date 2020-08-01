@@ -3,7 +3,7 @@ import Authentication from './authentication.js';
 import Messaging from './messaging.js';
 import Database from './database.js';
 import Doorbells from './doorbells.js';
-import { generateId, clear, since, create} from './utils/index.js';
+import { generateId, clear, since, create } from './utils/index.js';
 
 const $ = (selector) => document.getElementById(selector);
 
@@ -43,7 +43,6 @@ const onLoad = () => {
 
 ///Hierna zijn draken
 
-let events = [];
 let receiveNotifications = true;
 let doorbellState = {
     'voordeur': {
@@ -72,6 +71,19 @@ const renderDoorbells = (doorbells) => {
         select.dispatchEvent(event);
     }
 }
+const imageListItem = (payload, title) =>{
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(title));
+
+    if (payload && payload.url) {
+        div.appendChild(getImageTag(payload.url))
+    } else {
+        const spinner = document.createElement('div');
+        spinner.classList.add('loader');
+        div.appendChild(spinner)
+    }
+    return div;
+}
 
 //Event list component
 const createLiContent = (event) => {
@@ -83,34 +95,60 @@ const createLiContent = (event) => {
         case 'REMOTE_RING':
             return document.createTextNode(`Ringed doorbell ${payload.n} times with a ${payload.delay} ms interval.`)
         case 'RING':
-            return document.createTextNode('Someone rang the bell.')
+            return imageListItem(payload, 'Someone rang the bell.');
+        case 'CAPTURE_IMAGE':
+            return imageListItem(payload, 'Capture image');
         case 'SENSOR_TRIGGERED':
             return document.createTextNode(payload.message);
         default:
             return document.createTextNode(event.type);
     }
 }
+const imgMem = {};
+const getImageTag = (src) => {
+    if (imgMem[src]) {
+        return imgMem[src];
+    }
+
+    const img = document.createElement('img');
+    img.src = src;
+
+    imgMem[src] = img
+    return imgMem[src];
+}
+const createTimestamp = (event) => {
+    const spnTimestamp = document.createElement("span");
+    spnTimestamp.classList.add("timestamp");
+    spnTimestamp.innerText = `${since(event.timestamp)}: `;
+    setInterval(()=>{
+        spnTimestamp.innerText = `${since(event.timestamp)}: `;
+    }, 1000);
+    return spnTimestamp;
+}
 const buildListItem = (event) => {
     const li = document.createElement("li");
     const p = document.createElement("p");
-    const spnTimestamp = document.createElement("span");
-    spnTimestamp.classList.add("timestamp");
-    spnTimestamp.appendChild(document.createTextNode(since(event.timestamp) + ": "))
-    const span = document.createElement("span");
-    span.classList.add("content");
-    span.appendChild(createLiContent(event));
+    const spnTimestamp = createTimestamp(event);
+    
+    const content = document.createElement("div");
+    content.classList.add("content");
+    content.appendChild(createLiContent(event));
     p.appendChild(spnTimestamp);
-    p.appendChild(span);
+    p.appendChild(content);
     li.appendChild(p);
+
     return li;
 }
-setInterval(() => {
+
+const renderEvents = (events)=>{
     const ul = $('rings');
     clear(ul);
-    events
-        .map((event) => buildListItem(event))
-        .forEach((li) => ul.append(li));
-}, 1000)
+    if (events) {
+        events
+            .map((event) => buildListItem(event))
+            .forEach((li) => ul.append(li));
+    }
+}
 //eind even list component
 const renderState = (did) => {
     if (!did) return;
@@ -150,20 +188,26 @@ const subscribeToDoorbell = (db, did) => {
     }
 
     //Listen to events
-    db.ref('/doorbells/' + did + '/events').orderByKey().limitToLast(20).on('child_added', (snapshot) => {
-        const value = snapshot.val();
-        value.timestamp = snapshot.key;
-        events.unshift(value);
+    db.ref('/doorbells/' + did + '/events').orderByKey().limitToLast(20).on('value', (snapshot) => {
+        const newEvents = snapshot.val();
+        const keys = Object.keys(newEvents);
+        const events = [];
+        keys.forEach(key =>{
+            events.unshift({
+                ...newEvents[key],
+                timestamp: key
+            })
+        })
+        renderEvents(events);
     })
+
     //listen to state
     db.ref('/doorbells/' + did + '/state').once('value', (snapshot) => {
         doorbellState[did] = snapshot.val();
-        console.log('once', doorbellState[did]);
         renderState(did);
     });
     db.ref('/doorbells/' + did + '/state').on('child_changed', (snapshot) => {
         doorbellState[did][snapshot.key] = snapshot.val();
-        console.log('once', doorbellState[did]);
         renderState(did);
     });
 
@@ -178,6 +222,27 @@ const subscribeToDoorbell = (db, did) => {
 }
 
 const setupUI = (auth, db) => {
+
+
+    $('btnSend').onclick = (event) => {
+        db.sendEvent('voordeur', {
+            type: 'TEST_TAG',
+            payload: {
+                tag: generateId(5),
+                image: "and something else"
+            }
+        })
+
+    }
+    $('btnCapture').onclick = () => {
+        const event = {
+            type: 'CAPTURE_IMAGE',
+            payload: {
+                tag: generateId(10)
+            }
+        };
+        db.sendEvent('voordeur', event)
+    }
     //Setup doorbell selections
     $('doorbells').onchange = (event) => {
         subscribeToDoorbell(db, $('doorbells').value);

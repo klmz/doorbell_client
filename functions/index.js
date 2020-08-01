@@ -3,6 +3,10 @@ const functions = require('firebase-functions');
 
 const admin = require('firebase-admin');
 admin.initializeApp();
+const config = JSON.parse(process.env.FIREBASE_CONFIG);
+const projectId = config.projectId;
+const appUrl = `https://${projectId}.firebaseapp.com/`;
+
 
 const getSettings = (tokenResponse) =>{
 	return {
@@ -48,8 +52,30 @@ const sendNotification = async (doorbellId, payload) => {
 exports.eventListener = functions.database.ref('/doorbells/{did}/events/{timestamp}')
 	.onWrite(async (change, context) => {
 		const {did, timestamp} = context.params;
-		const event = change.after.val()
-;
+		const event = change.after.val();
+
+		//If the event has a tag id, check if it already exists
+		if(event.payload && event.payload.tag){
+			console.log('tag', event.payload.tag);
+			const db = admin.database();
+			db.ref(`/doorbells/${did}/events`).orderByChild('payload/tag').equalTo(event.payload.tag).once('value', (snapshot) => {
+				const value = snapshot.val();
+				if (!value) return;
+	
+				const timestamps = Object.keys(value);
+				const originalTimestamp = timestamps.shift();
+	
+				timestamps.forEach((ts) =>{
+					value[originalTimestamp] = { 
+						...value[originalTimestamp],
+						...value[ts]
+					}
+					db.ref(`/doorbells/${did}/events/${ts}`).remove();
+				})
+				db.ref(`/doorbells/${did}/events/${originalTimestamp}`).set(value[originalTimestamp]);
+			})
+		}
+
 		console.log("Received event: ", event.type, event);
 		switch (event.type) {
 			case 'RING':
@@ -101,7 +127,8 @@ const handleOnlineOffline = async (did, timestamp, event) => {
 				notification: {
 					title: 'Je deurbel ging offline',
 					body: `Het gaat om deurbell ${did}.`,
-					type: 'OFFLINE'
+					type: 'OFFLINE',
+					click_action: appUrl
 				}
 			};
 			break;
@@ -111,7 +138,8 @@ const handleOnlineOffline = async (did, timestamp, event) => {
 				notification: {
 					title: 'Je deurbel ging online',
 					body: `Het gaat om deurbell ${did}.`,
-					type: 'ONLINE'
+					type: 'ONLINE',
+					click_action: appUrl
 				}
 			};
 			break;
