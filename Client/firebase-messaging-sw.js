@@ -36,6 +36,7 @@ messaging.setBackgroundMessageHandler(function(payload) {
   });
 
   self.addEventListener('notificationclick', function(event) {
+    console.log('Notificaiton click', event);
     event.notification.close();
     event.waitUntil(self.clients.openWindow(event));
   });

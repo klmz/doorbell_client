@@ -4,8 +4,8 @@ class Messaging{
         this.db = db;
         this.auth = auth;
         
-        // this.messaging.usePublicVapidKey("BLZ_vp3uxqZzGckZDsorXVV_aAKrGb6kF3nU1HbkoDfz8qt2vCv8b98mSuKRTJdgO5HLF5JTAYbAXupPoVVvCfg");
-        this.messaging.usePublicVapidKey("AAAAsbpWdGo:APA91bGOWr0mBoaVe18rPtyvrwnEnBAISJtwD4uNrvMaoqPBEA1tQk2FHYnwXyE_UXWs87TZfa0qgwhmz4z5rwls8j4WM7D0bEQ3VlZYpP-mY1V8ldtwTMWaUG2bQuBq2hVgAn5tPYI4");
+        this.messaging.usePublicVapidKey("BLZ_vp3uxqZzGckZDsorXVV_aAKrGb6kF3nU1HbkoDfz8qt2vCv8b98mSuKRTJdgO5HLF5JTAYbAXupPoVVvCfg");
+        // this.messaging.usePublicVapidKey("AAAAsbpWdGo:APA91bGOWr0mBoaVe18rPtyvrwnEnBAISJtwD4uNrvMaoqPBEA1tQk2FHYnwXyE_UXWs87TZfa0qgwhmz4z5rwls8j4WM7D0bEQ3VlZYpP-mY1V8ldtwTMWaUG2bQuBq2hVgAn5tPYI4");
         this.messaging.onTokenRefresh(this.onTokenRefresh);
         this.messaging.onMessage(this.onMessage)
     }
@@ -14,6 +14,7 @@ class Messaging{
         // Get Instance ID token. Initially this makes a network call, once retrieved
         // subsequent calls to getToken will return from cache.
         this.messaging.getToken().then((currentToken) => {
+            console.log('currentToken', currentToken);
             if (currentToken) {
                 this.db.saveToken(currentToken);
             } else {
@@ -35,6 +36,12 @@ class Messaging{
 
     onMessage(payload){
         console.log('Message received', payload);
+        const notificationTitle = payload.notification.title;
+        const notificationOptions = payload.notification;
+        var notification = new Notification(notificationTitle, notificationOptions);
+        notification.onclick = (event) =>{
+            console.log(event);
+        }
     }
 }
 
