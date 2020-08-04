@@ -8,14 +8,13 @@ importScripts('https://www.gstatic.com/firebasejs/7.14.4/firebase-messaging.js')
 // your app's Firebase config object.
 // https://firebase.google.com/docs/web/setup#config-object
 firebase.initializeApp({
-    apiKey: "AIzaSyD0GRgeKtnPEERNp8_69CEEXiMrr-1KLY4",
-    authDomain: "doorbell-7c976.firebaseapp.com",
-    databaseURL: "https://doorbell-7c976.firebaseio.com",
-    projectId: "doorbell-7c976",
-    storageBucket: "doorbell-7c976.appspot.com",
-    messagingSenderId: "925356953936",
-    appId: "1:925356953936:web:3d792e3a470c6b9c23dc55",
-    measurementId: "G-M28R1SSRE3"
+  apiKey: "AIzaSyBC4rIl6DAJW-ujyG5zTTM9rlGORgaW_tY",
+  authDomain: "doorbell-cc841.firebaseapp.com",
+  databaseURL: "https://doorbell-cc841.firebaseio.com",
+  projectId: "doorbell-cc841",
+  storageBucket: "doorbell-cc841.appspot.com",
+  messagingSenderId: "270402270333",
+  appId: "1:270402270333:web:a1adbf1e891daea90b6d14"
   });
 
 // Retrieve an instance of Firebase Messaging so that it can handle background

@@ -4,8 +4,13 @@ class Messaging{
         this.db = db;
         this.auth = auth;
         
+<<<<<<< Updated upstream
         this.messaging.usePublicVapidKey("BLZ_vp3uxqZzGckZDsorXVV_aAKrGb6kF3nU1HbkoDfz8qt2vCv8b98mSuKRTJdgO5HLF5JTAYbAXupPoVVvCfg");
         // this.messaging.usePublicVapidKey("AAAAsbpWdGo:APA91bGOWr0mBoaVe18rPtyvrwnEnBAISJtwD4uNrvMaoqPBEA1tQk2FHYnwXyE_UXWs87TZfa0qgwhmz4z5rwls8j4WM7D0bEQ3VlZYpP-mY1V8ldtwTMWaUG2bQuBq2hVgAn5tPYI4");
+=======
+        // this.messaging.usePublicVapidKey("BLZ_vp3uxqZzGckZDsorXVV_aAKrGb6kF3nU1HbkoDfz8qt2vCv8b98mSuKRTJdgO5HLF5JTAYbAXupPoVVvCfg");
+        this.messaging.usePublicVapidKey("BLwk4DMCPeD6C6Ax-zK1O8Xv85YbW7hJJb7zqS5Byqem1S_b4s7nkNpljBX4MsVCRW2TZrEIGkaOinl8Pk4PL94");
+>>>>>>> Stashed changes
         this.messaging.onTokenRefresh(this.onTokenRefresh);
         this.messaging.onMessage(this.onMessage)
     }
