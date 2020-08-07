@@ -196,6 +196,7 @@ const subscribeToDoorbell = (db, did) => {
         const indexTagMap = {};
         const removableIndices = [];
         events.forEach((event, i) =>{
+            if(event.payload == null) return;
             if(!event.payload.tag) return;
             if(typeof indexTagMap[event.payload.tag] != "undefined"){
                 //replace the index, and schedule the existing value for deletion
